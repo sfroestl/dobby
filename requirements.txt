@@ -1,2 +1,17 @@
+# Server
+# fastapi
+# uvicorn[standard]
+# pydantic-settings
+python-dotenv
+
+# Device integrations
+phue
+# meross-iot
+# python-kasa
+# pyaarlo
+
+# HTTP client
+# httpx
+
 # Claude agent
 anthropic

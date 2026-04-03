@@ -1,32 +1,42 @@
 """
 Natural language home automation agent using Claude + tool use.
-Talks to the dobby FastAPI server running on localhost.
+Connects directly to the Philips Hue bridge.
 """
+import json
 import os
 import logging
-import httpx
 from dotenv import load_dotenv
 import anthropic
 from anthropic import beta_tool
+from phue import Bridge
 
 # Load variables from .env
 load_dotenv()
 
 _logger = logging.getLogger(__name__)
 
-BASE_URL = os.getenv("DOBBY_URL", "http://localhost:8000")
-API_KEY = os.getenv("API_KEY")
 ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY")
+HUE_BRIDGE_IP = os.getenv("HUE_BRIDGE_IP")
 
-_headers = {"X-API-Key": API_KEY} if API_KEY else {}
+bridge = Bridge(HUE_BRIDGE_IP)
 
 
 @beta_tool
 def list_devices() -> str:
-    """List all smart home devices and their current status."""
-    # r = httpx.get(f"{BASE_URL}/devices", headers=_headers, timeout=10)
-    # r.raise_for_status()
-    # return r.text
+    """List all Hue lights with their name, on/off state, and brightness."""
+    lights = bridge.get_light()
+    result = []
+    for light_id in sorted(lights.keys(), key=lambda x: int(x)):
+        light = lights[light_id]
+        state = light["state"]
+        result.append({
+            "id": light_id,
+            "name": light["name"],
+            "on": state["on"],
+            "brightness": state.get("bri"),
+            "reachable": state.get("reachable"),
+        })
+    return json.dumps(result)
 
 
 @beta_tool
@@ -85,6 +95,7 @@ def run(user_message: str) -> str:
     )
     last = None
     for msg in runner:
+        _logger.warning(f"response: {msg.content}")
         last = msg
     if last is None:
         return ""
@@ -105,8 +116,8 @@ def main():
 
 
 if __name__ == "__main__":
-    logging.basicConfig(
-        level=logging.DEBUG,
-        format="%(levelname)s %(name)s: %(message)s",
-    )
+    # logging.basicConfig(
+    #     level=logging.DEBUG,
+    #     format="%(levelname)s %(name)s: %(message)s",
+    # )
     main()
